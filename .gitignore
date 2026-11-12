@@ -54,3 +54,6 @@ logs/
 __pycache__/
 *.pyc
 .venv/
+
+### Capturas del navegador de pruebas ###
+.playwright-mcp/

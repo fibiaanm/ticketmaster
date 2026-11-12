@@ -41,10 +41,19 @@ make test-unit           # unitarias: ~4 s, sin infraestructura
 make test-integration    # unitarias + integración con MySQL, Valkey y OpenSearch reales (~1 min)
 make diagramas           # regenera docs/*.png (Python + Graphviz en contenedor)
 ```
+- **Interfaz web:** http://localhost:8080 (login, listado con filtros y búsqueda, detalle con el análisis de IA y la línea de tiempo, alta de tickets y métricas)
 - API: http://localhost:8080 · **Swagger UI:** http://localhost:8080/swagger-ui.html
 - **Logs:** OpenSearch Dashboards http://localhost:5601 → Discover (el index pattern `tickets-logs-*` ya viene creado)
 - Usuarios de desarrollo (perfil `dev`, contraseña `pw`): `admin@tickets.local` (ADMIN), `soporte@tickets.local`
   (SOPORTE), `usuario@tickets.local` (USUARIO).
+
+## Interfaz web
+Página estática (HTML, CSS y JavaScript sin framework ni build) servida por la propia API desde `src/main/resources/static`.
+Usa los mismos endpoints y credenciales que cualquier cliente: la página es pública, la API sigue exigiendo JWT.
+- **Seguridad:** el contenido de los tickets se inserta siempre como texto (nunca como HTML) y la página lleva una CSP
+  estricta (`default-src 'none'; script-src 'self'; …`) que no se aplica a Swagger. El token vive en `sessionStorage`.
+- Un test impide que el JavaScript use `innerHTML`, `eval`, `localStorage` o scripts/estilos en línea, y el CI valida
+  su sintaxis con `node --check`.
 
 ## Autenticación y roles
 `POST /api/auth/login` devuelve un **JWT** y un **token de sesión**; sirve cualquiera: `Authorization: Bearer <jwt>` o

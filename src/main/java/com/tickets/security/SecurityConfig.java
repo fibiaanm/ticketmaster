@@ -17,12 +17,27 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.DelegatingRequestMatcherHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 import tools.jackson.databind.json.JsonMapper;
 
 import java.io.IOException;
 
 @Configuration
 public class SecurityConfig {
+
+    /** Solo la pagina y sus recursos: Swagger UI necesita scripts propios y no debe heredar esta politica. */
+    private static final RequestMatcher PAGINA_ESTATICA = new OrRequestMatcher(
+            PathPatternRequestMatcher.withDefaults().matcher("/"),
+            PathPatternRequestMatcher.withDefaults().matcher("/index.html"),
+            PathPatternRequestMatcher.withDefaults().matcher("/assets/**"));
+
+    private static final String CSP = "default-src 'none'; script-src 'self'; style-src 'self'; "
+            + "img-src 'self' data:; connect-src 'self'; font-src 'self'; base-uri 'none'; "
+            + "form-action 'self'; frame-ancestors 'none'";
 
     private static final JsonMapper MAPPER = JsonMapper.builder().findAndAddModules().build();
 
@@ -36,8 +51,11 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
+                .headers(h -> h.addHeaderWriter(new DelegatingRequestMatcherHeaderWriter(
+                        PAGINA_ESTATICA, new StaticHeadersWriter("Content-Security-Policy", CSP))))
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(a -> a
+                        .requestMatchers("/", "/index.html", "/favicon.ico", "/assets/**").permitAll()
                         .requestMatchers("/api/auth/login", "/actuator/health", "/actuator/health/**",
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**").permitAll()
                         .anyRequest().authenticated())

@@ -94,6 +94,13 @@ Inicio: 2026-11-12. Metodología: planeación → TDD (rojo/verde/refactor) → 
 - Unitarias (`*Test`, surefire, ~4 s, sin infraestructura) e integración (`*IT`, failsafe, ~1 min, servicios reales).
   Se corrigió un error de proceso: los `*IT` no corrían con `mvn test` y solo se ejecutaban nombrándolos.
 
+## D16. Interfaz web mínima servida por Spring
+- Página estática sin framework ni build en `src/main/resources/static`, servida por la misma API (mismo origen: sin
+  CORS, sin contenedor nuevo). Login, listado con filtros, detalle con análisis de IA y línea de tiempo, alta y métricas.
+  Sin acciones de administración ni auditoría: "lo más básico y sencillo posible".
+- Seguridad: texto en vez de HTML (anti-XSS), CSP estricta solo para la página (Swagger necesita scripts propios), token
+  en `sessionStorage`, rutas estáticas públicas y API protegida. Los accesos a la página no se registran en los logs.
+
 ---
 
 # Implementación
@@ -127,6 +134,7 @@ Método por fase: tests primero (rojo) → código mínimo (verde) → refactor.
   `RateLimitFilter` después de la autenticación (limita por usuario o IP).
 - **Fase 15 — OpenSearch.** Mapeo con analizador de español y normalizador, `ConsultaOpenSearch` (todos los filtros y
   orden), indexador, buscador con lectura fresca desde MySQL, `BuscadorEnrutador`, reindexado.
+- **Fase 17 — Interfaz web.** Estáticos + regla de seguridad + CSP; verificada con capturas reales de cada vista.
 - **Fase 16 — Calidad y entrega.** Tests con Mockito y `@WebMvcTest`, suites separadas, CI en GitHub Actions,
   `.gitignore` verificado.
 
@@ -142,4 +150,10 @@ Método por fase: tests primero (rojo) → código mínimo (verde) → refactor.
   las suites; (2) las versiones de prompt inmutables abortaron el arranque cuando un test dejó basura en la BD: los
   tests limpian antes y después; (3) un worker siempre activo compite entre contextos de prueba: en test el sondeo está
   desactivado y los tests lo invocan a mano; (4) Boot 4 cambió paquetes de test y Jackson.
+- **Primer CI en GitHub:** falló una prueba de integración (`RateLimitIT`) por una carrera que en local no aparecía: el
+  worker de fondo de un contexto de Spring recién arrancado procesaba tareas del test anterior e insertaba eventos
+  mientras el siguiente test limpiaba la BD (violación de clave foránea). Solución: el worker se desactiva en las
+  pruebas (`analysis.worker.enabled=false`), que invocan la cola a mano. La suite pasó dos veces seguidas en local.
+- **Interfaz:** un paréntesis de más en el JavaScript rompió la página y ningún test lo detectó; se añadió `node --check`
+  al CI y la verificación visual de cada vista.
 - **Limitaciones conocidas:** ver README.

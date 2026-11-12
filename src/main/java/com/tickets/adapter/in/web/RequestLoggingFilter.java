@@ -28,7 +28,9 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return request.getRequestURI().startsWith("/actuator");
+        String ruta = request.getRequestURI();
+        return ruta.startsWith("/actuator") || ruta.startsWith("/assets/") || ruta.equals("/")
+                || ruta.equals("/index.html") || ruta.equals("/favicon.ico");
     }
 
     @Override
