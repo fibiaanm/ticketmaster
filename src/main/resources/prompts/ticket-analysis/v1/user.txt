@@ -1,0 +1,15 @@
+Analiza el siguiente ticket de soporte técnico.
+
+Título:
+{titulo}
+
+Descripción:
+{descripcion}
+
+Devuelve únicamente un JSON con esta estructura:
+{
+  "categoria": "HARDWARE | SOFTWARE | CONECTIVIDAD | ACCESOS | OTRO",
+  "prioridad": "BAJA | MEDIA | ALTA | CRITICA",
+  "resumen": "Resumen de máximo 30 palabras",
+  "etiquetas": ["etiqueta1", "etiqueta2"]
+}

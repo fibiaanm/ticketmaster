@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:mysql://localhost:3306/tickets_test?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC}
+logging:
+  file:
+    name: target/test-app.json
+security:
+  jwt:
+    secret: un-secreto-de-prueba-con-mas-de-32-bytes-0123456789
+analysis:
+  mode: sync
+  poll-ms: 3600000   # el worker no compite entre contextos de prueba; los tests lo invocan a mano
+search:
+  engine: mysql
+ai:
+  api-key: ""
+  max-retries: 0
+  retry-backoff-ms: 0
+cache:
+  store: memory
+ratelimit:
+  login: 100000
+  crear-ticket: 100000
+  reanalizar: 100000
+  general: 100000

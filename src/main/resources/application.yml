@@ -1,0 +1,90 @@
+spring:
+  application:
+    name: tickets-backend
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/tickets?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC}
+    username: ${DB_USERNAME:tickets}
+    password: ${DB_PASSWORD:tickets}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  flyway:
+    enabled: true
+  data:
+    redis:
+      host: ${VALKEY_HOST:localhost}
+      port: ${VALKEY_PORT:6379}
+      timeout: 500ms
+      connect-timeout: 500ms
+
+server:
+  error:
+    include-message: never
+
+
+management:
+  health:
+    redis:
+      enabled: false   # la cache y el rate limit degradan solos: Valkey caido no debe tumbar el health
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  file:
+    name: ${LOG_FILE:logs/app.json}
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB
+      max-history: 7
+      total-size-cap: 500MB
+  structured:
+    format:
+      file: logstash
+
+security:
+  jwt:
+    secret: ${JWT_SECRET}
+    ttl-minutes: 60
+  session:
+    ttl-minutes: 480
+
+search:
+  engine: ${SEARCH_ENGINE:mysql}          # mysql | hybrid | opensearch
+  opensearch:
+    url: ${OPENSEARCH_URL:http://localhost:9200}
+    index: tickets
+    timeout: 3s
+
+analysis:
+  mode: ${ANALYSIS_MODE:async}
+  max-attempts: 3
+  retry-delay-seconds: 30
+  poll-ms: 1000
+
+ai:
+  provider: ${AI_PROVIDER:openai}
+  model: ${AI_MODEL:gpt-5.4-mini}
+  api-key: ${AI_API_KEY:}
+  timeout-seconds: 20
+  max-retries: 1
+
+cache:
+  store: ${CACHE_STORE:valkey}        # valkey | memory
+  ttl:
+    sesion: 30s
+    usuario: 60s
+    prompt: 60s
+    metricas: 60s
+
+ratelimit:
+  enabled: true
+  window: 60s
+  login: 5          # intentos de login por IP por ventana
+  crear-ticket: 10  # cada ticket nuevo puede costar una llamada al modelo de IA
+  reanalizar: 5
+  general: 120      # peticiones a /api/** por usuario (o por IP si no esta autenticado)

@@ -1,0 +1,21 @@
+{
+  "index_patterns": ["tickets-logs-*"],
+  "template": {
+    "settings": { "number_of_shards": 1, "number_of_replicas": 0 },
+    "mappings": {
+      "properties": {
+        "message":   { "type": "text" },
+        "level":     { "type": "keyword" },
+        "severity":  { "type": "keyword" },
+        "requestId": { "type": "keyword" },
+        "http_method": { "type": "keyword" },
+        "http_path": { "type": "keyword" },
+        "http_status": { "type": "integer" },
+        "duration_ms": { "type": "long" },
+        "user_id":   { "type": "keyword" },
+        "user_rol":  { "type": "keyword" },
+        "data":      { "type": "text", "index": false }
+      }
+    }
+  }
+}

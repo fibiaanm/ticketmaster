@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unitarias:
+    name: Pruebas unitarias (rápidas, sin infraestructura)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - run: mvn -B test
+
+  integracion:
+    name: Pruebas de integración (MySQL, Valkey y OpenSearch reales)
+    needs: unitarias
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: tickets_test
+          MYSQL_USER: tickets
+          MYSQL_PASSWORD: tickets
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+      valkey:
+        image: valkey/valkey:8
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd="valkey-cli ping" --health-interval=5s --health-timeout=3s --health-retries=20
+      opensearch:
+        image: opensearchproject/opensearch:2
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          DISABLE_INSTALL_DEMO_CONFIG: "true"
+          OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+        ports: ["9200:9200"]
+        options: >-
+          --health-cmd="curl -sf http://localhost:9200/_cluster/health"
+          --health-interval=10s --health-timeout=5s --health-retries=30
+    env:
+      TEST_DB_URL: jdbc:mysql://localhost:3306/tickets_test?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      DB_USERNAME: tickets
+      DB_PASSWORD: tickets
+      VALKEY_HOST: localhost
+      OPENSEARCH_URL: http://localhost:9200
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+      - run: mvn -B verify
+
+  imagen:
+    name: Construcción de la imagen Docker
+    needs: unitarias
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t tickets-backend:ci .

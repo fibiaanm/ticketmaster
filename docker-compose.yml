@@ -1,0 +1,125 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_USER: tickets
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-tickets}
+    ports: ["127.0.0.1:3307:3306"]
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # Valkey (no Redis): fork BSD con respaldo de la Linux Foundation, compatible con el protocolo de Redis.
+  # Redis paso a una licencia no open source (RSALv2/SSPLv1; AGPLv3 solo desde la v8).
+  valkey:
+    image: valkey/valkey:8
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      mysql: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      DB_URL: jdbc:mysql://mysql:3306/tickets?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      DB_USERNAME: tickets
+      DB_PASSWORD: ${MYSQL_PASSWORD:-tickets}
+      JWT_SECRET: ${JWT_SECRET}
+      VALKEY_HOST: valkey
+      SEARCH_ENGINE: ${SEARCH_ENGINE:-hybrid}
+      OPENSEARCH_URL: http://opensearch:9200
+      ANALYSIS_MODE: ${ANALYSIS_MODE:-async}
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-5.4-mini}
+      AI_API_KEY: ${AI_API_KEY:-}
+      LOG_FILE: /var/log/app/app.json
+    ports: ["127.0.0.1:8080:8080"]
+    volumes:
+      - app-logs:/var/log/app
+
+  opensearch:
+    image: opensearchproject/opensearch:2
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m
+    ports: ["127.0.0.1:9200:9200"]
+    volumes: [opensearch-data:/usr/share/opensearch/data]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  opensearch-init:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      opensearch: { condition: service_healthy }
+    volumes: ["./docker/opensearch:/init:ro"]
+    entrypoint: ["sh", "/init/init.sh"]
+    restart: "no"
+
+  opensearch-dashboards:
+    image: opensearchproject/opensearch-dashboards:2
+    depends_on:
+      opensearch: { condition: service_healthy }
+    environment:
+      OPENSEARCH_HOSTS: '["http://opensearch:9200"]'
+      DISABLE_SECURITY_DASHBOARDS_PLUGIN: "true"
+    ports: ["127.0.0.1:5601:5601"]
+
+  # Crea el index pattern tickets-logs-* y lo fija como predeterminado (una sola vez).
+  dashboards-init:
+    image: curlimages/curl:8.10.1
+    depends_on:
+      opensearch-dashboards: { condition: service_started }
+    volumes: ["./docker/opensearch:/init:ro"]
+    entrypoint: ["sh", "/init/dashboards-init.sh"]
+    restart: "no"
+
+  fluent-bit:
+    image: fluent/fluent-bit:3.2
+    depends_on:
+      opensearch-init: { condition: service_completed_successfully }
+    volumes:
+      - app-logs:/var/log/app:ro
+      - ./docker/fluent-bit/fluent-bit.conf:/fluent-bit/etc/fluent-bit.conf:ro
+      - ./docker/fluent-bit/parsers.conf:/fluent-bit/etc/parsers.conf:ro
+
+  # Herramienta: docker compose run --rm maven mvn test
+  maven:
+    image: maven:3-eclipse-temurin-21
+    profiles: ["tools"]
+    working_dir: /workspace
+    depends_on:
+      mysql: { condition: service_healthy }
+      valkey: { condition: service_healthy }
+      opensearch: { condition: service_healthy }
+    environment:
+      VALKEY_HOST: valkey
+      OPENSEARCH_URL: http://opensearch:9200
+      TEST_DB_URL: jdbc:mysql://mysql:3306/tickets_test?useUnicode=true&characterEncoding=utf8&serverTimezone=UTC
+      DB_USERNAME: tickets
+      DB_PASSWORD: ${MYSQL_PASSWORD:-tickets}
+    volumes:
+      - .:/workspace
+      - maven-cache:/root/.m2
+
+volumes:
+  mysql-data:
+  app-logs:
+  opensearch-data:
+  maven-cache:
