@@ -9,7 +9,8 @@ security:
     secret: un-secreto-de-prueba-con-mas-de-32-bytes-0123456789
 analysis:
   mode: sync
-  poll-ms: 3600000   # el worker no compite entre contextos de prueba; los tests lo invocan a mano
+  worker:
+    enabled: false   # sin worker de fondo: compite entre contextos y limpia/inserta datos a mitad de un test; los tests invocan la cola a mano
 search:
   engine: mysql
 ai:

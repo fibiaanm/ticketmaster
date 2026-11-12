@@ -15,7 +15,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** ANALYSIS_MODE=async: el POST responde con el analisis PENDIENTE y el worker lo completa. */
-@TestPropertySource(properties = {"analysis.mode=async", "analysis.poll-ms=3600000"})
+@TestPropertySource(properties = "analysis.mode=async")
 class AnalisisAsyncIT extends ApiTestBase {
 
     @Autowired ProcesarColaUseCase worker;

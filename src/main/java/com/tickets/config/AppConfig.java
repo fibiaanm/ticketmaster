@@ -93,7 +93,9 @@ public class AppConfig {
                 Duration.ofSeconds(props.retryDelaySeconds()));
     }
 
+    /** analysis.worker.enabled=false lo apaga (pruebas: invocan la cola a mano para ser deterministas). */
     @Bean
+    @ConditionalOnProperty(name = "analysis.worker.enabled", havingValue = "true", matchIfMissing = true)
     TareasWorker tareasWorker(ProcesarColaService procesar) {
         return new TareasWorker(procesar);
     }
